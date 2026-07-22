@@ -1,15 +1,24 @@
 [package]
-name = "thokr"
-description = "sleek typing tui with visualized results and historical logging"
-version = "0.5.0"
+name = "thokr-plus"
+description = "sleek typing tui — continuous timed mode, themes, death mode, punctuation & numbers (a thokr fork)"
+version = "0.6.0"
 readme = "README.md"
-repository = "https://github.com/thatvegandev/thokr.git"
-homepage = "https://github.com/thatvegandev/thokr"
+repository = "https://github.com/hindriix/thokr.git"
+homepage = "https://github.com/hindriix/thokr"
 license = "MIT"
-authors = ["Colby Thomas <thatvegandev@gmail.com>"]
+authors = [
+    "hindriix",
+    "Colby Thomas <thatvegandev@gmail.com>",
+]
 edition = "2021"
 exclude = [".github", "*.log", "Dockerfile", "plans"]
 keywords = ["tui", "terminal", "typing"]
+categories = ["command-line-utilities", "games"]
+
+# published crate name is `thokr-plus`, but the installed command stays `thokr`
+[[bin]]
+name = "thokr"
+path = "src/main.rs"
 
 [dependencies]
 ratatui = "0.30.1"

@@ -1854,8 +1854,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "thokr"
-version = "0.5.0"
+name = "thokr-plus"
+version = "0.6.0"
 dependencies = [
  "cgisf_lib",
  "chrono",
@@ -1874,9 +1874,9 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.3.48"
+version = "0.3.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc1aa89044e7786ffb2ec017acb22cb7de5b0be46d0f21aea2b224b8561e5db2"
+checksum = "3e1d5e639ff6bab73cb6885cc7e7b1de96c3f32c68ec55f3952614bec1092244"
 dependencies = [
  "deranged",
  "libc",

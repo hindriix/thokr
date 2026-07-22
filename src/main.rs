@@ -1,10 +1,16 @@
 mod lang;
 mod layout;
+mod theme;
 mod thok;
 mod ui;
 mod util;
 
-use crate::{lang::Language, thok::Thok};
+use crate::{
+    lang::Language,
+    theme::{Theme, ThemePreset},
+    thok::Thok,
+    ui::ThokView,
+};
 use clap::error::ErrorKind;
 use clap::{CommandFactory, Parser, ValueEnum};
 use ratatui::{
@@ -57,6 +63,10 @@ pub struct Cli {
     /// ghost caret pacing at this WPM to race against
     #[arg(long)]
     pace: Option<u16>,
+
+    /// color theme; a `theme.json` in the config dir can override any color
+    #[arg(long, value_enum, default_value_t = ThemePreset::Default)]
+    theme: ThemePreset,
 }
 
 #[derive(Debug, Copy, Clone, ValueEnum, strum_macros::Display)]
@@ -76,6 +86,7 @@ impl SupportedLanguage {
 struct App {
     cli: Cli,
     thok: Thok,
+    theme: Theme,
 }
 
 impl App {
@@ -117,7 +128,8 @@ impl App {
     fn new(cli: Cli) -> Self {
         let (prompt, count) = Self::generate_prompt(&cli);
         let thok = Self::build_thok(&cli, prompt, count);
-        Self { thok, cli }
+        let theme = Theme::resolve(cli.theme);
+        Self { thok, cli, theme }
     }
 
     fn reset(&mut self, new_prompt: Option<String>) {
@@ -317,7 +329,13 @@ fn get_thok_events(should_tick: bool) -> mpsc::Receiver<ThokEvent> {
 }
 
 fn ui(app: &mut App, f: &mut Frame) {
-    f.render_widget(&app.thok, f.area());
+    f.render_widget(
+        ThokView {
+            thok: &app.thok,
+            theme: &app.theme,
+        },
+        f.area(),
+    );
     if let Some(pos) = ui::cursor_screen_position(&app.thok, f.area()) {
         f.set_cursor_position(pos);
     }

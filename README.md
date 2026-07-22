@@ -49,6 +49,8 @@ Options:
           language to pull words from [default: english] [possible values: english, english1k, english10k]
       --pace <PACE>
           ghost caret pacing at this WPM to race against
+      --theme <THEME>
+          color theme; a `theme.json` in the config dir can override any color [default: default] [possible values: default, matrix, dracula, ocean, mono]
   -h, --help
           Print help
   -V, --version
@@ -81,6 +83,38 @@ scrolls a few lines at a time so the layout stays put. `-w` then just sets the
 size of the initial on-screen buffer. Combining `-s` with a custom prompt (`-p`)
 or sentences (`-f`) keeps the text fixed, so the test still ends when you finish
 it or the timer expires, whichever comes first.
+
+### Theming
+
+Pick a built-in palette with `--theme`:
+
+```sh
+$ thokr --theme dracula
+$ thokr -s 30 --theme matrix
+```
+
+Available presets: `default` (the classic look), `matrix`, `dracula`, `ocean`,
+and `mono`.
+
+For full control, drop a `theme.json` into thokr's config directory (the same
+folder as `log.csv` — see [Logging](#logging)). Any color you set overrides the
+selected preset; anything you omit falls back to it. Colors accept either a
+named terminal color or a `#rrggbb` hex value:
+
+```json
+{
+  "preset": "dracula",
+  "correct": "#50fa7b",
+  "incorrect": "red",
+  "pending": "#6272a4",
+  "graph": "lightmagenta",
+  "timer": "#f1fa8c",
+  "text": "white"
+}
+```
+
+An unrecognized color is ignored in favor of the preset, so a typo never leaves
+the interface unreadable.
 
 ## Supported Languages
 

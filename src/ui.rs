@@ -1,14 +1,23 @@
 use ratatui::{
     buffer::Buffer,
     layout::{Alignment, Constraint, Direction, Layout, Position, Rect},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Axis, Chart, Dataset, GraphType, Paragraph, Widget},
 };
 use webbrowser::Browser;
 
 use crate::layout;
+use crate::theme::Theme;
 use crate::thok::{Outcome, Thok};
+
+/// A `Thok` paired with the active [`Theme`], so rendering can stay themeable
+/// without threading colors through the domain type. This is the widget the
+/// app actually draws.
+pub struct ThokView<'a> {
+    pub thok: &'a Thok,
+    pub theme: &'a Theme,
+}
 
 const HORIZONTAL_MARGIN: u16 = 5;
 const VERTICAL_MARGIN: u16 = 2;
@@ -115,54 +124,66 @@ pub fn cursor_screen_position(thok: &Thok, area: Rect) -> Option<Position> {
     Some(Position::new(x, y))
 }
 
-impl Widget for &Thok {
+impl Widget for ThokView<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        // styles
+        let thok = self.thok;
+        let theme = self.theme;
+
+        // themed styles: correct/incorrect/pending drive the prompt, the rest
+        // dress the results screen. `text` colors stats and axes.
         let bold_style = Style::default().add_modifier(Modifier::BOLD);
 
-        let green_bold_style = Style::default().patch(bold_style).fg(Color::Green);
-        let red_bold_style = Style::default().patch(bold_style).fg(Color::Red);
+        let correct_style = Style::default().patch(bold_style).fg(theme.correct);
+        let incorrect_style = Style::default().patch(bold_style).fg(theme.incorrect);
 
-        let dim_bold_style = Style::default()
+        let pending_style = Style::default()
             .patch(bold_style)
-            .add_modifier(Modifier::DIM);
+            .add_modifier(Modifier::DIM)
+            .fg(theme.pending);
+
+        let timer_style = Style::default()
+            .patch(bold_style)
+            .add_modifier(Modifier::DIM)
+            .fg(theme.timer);
+
+        let text_style = Style::default().patch(bold_style).fg(theme.text);
 
         let italic_style = Style::default().add_modifier(Modifier::ITALIC);
 
-        let magenta_style = Style::default().fg(Color::Magenta);
+        let graph_style = Style::default().fg(theme.graph);
 
-        match !self.has_finished() {
+        match !thok.has_finished() {
             true => {
-                let geo = running_geometry(self, area);
+                let geo = running_geometry(thok, area);
                 let chunks = geo.chunks;
-                let pace = self.pace_caret_index();
+                let pace = thok.pace_caret_index();
 
                 // one span per prompt char (1:1 with cells). The pace cell
                 // keeps its real character and gets a REVERSED block patched
                 // onto whatever style it already has (demo variant). The
                 // cursor cell is a plain dim-bold char — the hardware bar
                 // cursor overlays it (set in main::ui).
-                let spans = self
+                let spans = thok
                     .prompt_chars
                     .iter()
                     .enumerate()
                     .map(|(idx, &expected)| {
-                        let mut span = if idx < self.input.len() {
-                            match self.input[idx].outcome {
+                        let mut span = if idx < thok.input.len() {
+                            match thok.input[idx].outcome {
                                 Outcome::Incorrect => Span::styled(
                                     if expected == ' ' {
                                         "·".to_owned()
                                     } else {
                                         expected.to_string()
                                     },
-                                    red_bold_style,
+                                    incorrect_style,
                                 ),
                                 Outcome::Correct => {
-                                    Span::styled(expected.to_string(), green_bold_style)
+                                    Span::styled(expected.to_string(), correct_style)
                                 }
                             }
                         } else {
-                            Span::styled(expected.to_string(), dim_bold_style)
+                            Span::styled(expected.to_string(), pending_style)
                         };
 
                         if Some(idx) == pace {
@@ -191,8 +212,8 @@ impl Widget for &Thok {
 
                 widget.render(chunks[2], buf);
 
-                if let Some(sr) = self.seconds_remaining {
-                    let timer = Paragraph::new(Span::styled(format!("{:.1}", sr), dim_bold_style))
+                if let Some(sr) = thok.seconds_remaining {
+                    let timer = Paragraph::new(Span::styled(format!("{:.1}", sr), timer_style))
                         .alignment(Alignment::Center);
 
                     timer.render(chunks[1], buf);
@@ -216,7 +237,7 @@ impl Widget for &Thok {
 
                 let mut highest_wpm = 0.0;
 
-                for ts in &self.wpm_coords {
+                for ts in &thok.wpm_coords {
                     if ts.1 > highest_wpm {
                         highest_wpm = ts.1;
                     }
@@ -224,13 +245,13 @@ impl Widget for &Thok {
 
                 let datasets = vec![Dataset::default()
                     .marker(ratatui::symbols::Marker::Braille)
-                    .style(magenta_style)
+                    .style(graph_style)
                     .graph_type(GraphType::Line)
-                    .data(&self.wpm_coords)];
+                    .data(&thok.wpm_coords)];
 
-                let mut overall_duration = match self.wpm_coords.last() {
+                let mut overall_duration = match thok.wpm_coords.last() {
                     Some(x) => x.0,
-                    _ => self.seconds_remaining.unwrap_or(1.0),
+                    _ => thok.seconds_remaining.unwrap_or(1.0),
                 };
 
                 overall_duration = if overall_duration < 1.0 {
@@ -245,8 +266,8 @@ impl Widget for &Thok {
                             .title("seconds")
                             .bounds([1.0, overall_duration])
                             .labels(vec![
-                                Span::styled("1", bold_style),
-                                Span::styled(format!("{:.2}", overall_duration), bold_style),
+                                Span::styled("1", text_style),
+                                Span::styled(format!("{:.2}", overall_duration), text_style),
                             ]),
                     )
                     .y_axis(
@@ -254,8 +275,8 @@ impl Widget for &Thok {
                             .title("wpm")
                             .bounds([0.0, highest_wpm.round()])
                             .labels(vec![
-                                Span::styled("0", bold_style),
-                                Span::styled(format!("{}", highest_wpm.round()), bold_style),
+                                Span::styled("0", text_style),
+                                Span::styled(format!("{}", highest_wpm.round()), text_style),
                             ]),
                     );
 
@@ -264,9 +285,9 @@ impl Widget for &Thok {
                 let stats = Paragraph::new(Span::styled(
                     format!(
                         "{} wpm   {}% acc   {:.2} sd",
-                        self.wpm, self.accuracy, self.std_dev
+                        thok.wpm, thok.accuracy, thok.std_dev
                     ),
-                    bold_style,
+                    text_style,
                 ))
                 .alignment(Alignment::Center);
 

@@ -1,31 +1,26 @@
-# thokr
+# thokr-plus
 ✨ sleek typing tui with visualized results and historical logging
 
-[![GitHub Build Workflow](https://github.com/thatvegandev/thokr/actions/workflows/build.yml/badge.svg)](https://github.com/thatvegandev/thokr/actions/workflows/build.yml)
-[![GitHub Deploy Workflow](https://github.com/thatvegandev/thokr/actions/workflows/deploy.yml/badge.svg)](https://github.com/thatvegandev/thokr/actions/workflows/deploy.yml)
 [![License](https://img.shields.io/badge/License-MIT-default.svg)](./LICENSE.md)
-[![Crate Version](https://img.shields.io/crates/v/thokr)](https://crates.io/crates/thokr)
-[![Github Stars](https://img.shields.io/github/stars/thatvegandev/thokr)](https://github.com/thatvegandev/thokr/stargazers)
+[![Crate Version](https://img.shields.io/crates/v/thokr-plus)](https://crates.io/crates/thokr-plus)
+[![Github Stars](https://img.shields.io/github/stars/hindriix/thokr)](https://github.com/hindriix/thokr/stargazers)
 
 ![demo](https://github.com/thatvegandev/assets/raw/main/thokr/demo.gif)
+
+> **thokr-plus** is an enhanced fork of [thokr](https://github.com/jrnxf/thokr).
+> On top of the original it adds **continuous timed mode**, **color themes**, a
+> **death mode**, and **punctuation/numbers** — while staying a drop-in `thokr`
+> command. See the [Usage](#usage) section for the new flags.
 
 ## Installation
 
 ### Cargo
 
 ```sh
-$ cargo install thokr
+$ cargo install thokr-plus
 ```
 
-### Docker
-
-```sh
-$ docker run -it thatvegandev/thokr
-```
-
-### Arch Linux
-
-Install `thokr-git` from the AUR
+The installed command is `thokr`.
 
 ## Usage
 

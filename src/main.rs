@@ -1,3 +1,4 @@
+mod decorate;
 mod lang;
 mod layout;
 mod theme;
@@ -6,6 +7,7 @@ mod ui;
 mod util;
 
 use crate::{
+    decorate::WordMods,
     lang::Language,
     theme::{Theme, ThemePreset},
     thok::Thok,
@@ -67,6 +69,27 @@ pub struct Cli {
     /// color theme; a `theme.json` in the config dir can override any color
     #[arg(long, value_enum, default_value_t = ThemePreset::Default)]
     theme: ThemePreset,
+
+    /// end the test the moment you mistype a character
+    #[arg(short = 'd', long = "death-mode")]
+    death_mode: bool,
+
+    /// sprinkle punctuation and capitalization into generated words
+    #[arg(long)]
+    punctuation: bool,
+
+    /// mix random numbers into generated words
+    #[arg(long)]
+    numbers: bool,
+}
+
+impl Cli {
+    fn word_mods(&self) -> WordMods {
+        WordMods {
+            punctuation: self.punctuation,
+            numbers: self.numbers,
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, ValueEnum, strum_macros::Display)]
@@ -107,10 +130,10 @@ impl App {
             (s.join(""), count)
         } else {
             let language = cli.supported_language.as_lang();
-            (
-                language.get_random(cli.number_of_words).join(" "),
-                cli.number_of_words,
-            )
+            let words = cli
+                .word_mods()
+                .apply(&language.get_random(cli.number_of_words));
+            (words.join(" "), cli.number_of_words)
         }
     }
 
@@ -119,6 +142,8 @@ impl App {
     fn build_thok(cli: &Cli, prompt: String, count: usize) -> Thok {
         let mut thok = Thok::new(prompt, count, cli.number_of_secs.map(|ns| ns as f64));
         thok.pace_wpm = cli.pace.map(f64::from);
+        thok.death_mode = cli.death_mode;
+        thok.word_mods = cli.word_mods();
         if Self::is_continuous(cli) {
             thok.refill_words = cli.supported_language.as_lang().word_pool();
         }
@@ -253,7 +278,7 @@ where
                                 }
                                 true => match key.code {
                                     KeyCode::Char('t') if Browser::is_available() => {
-                                        webbrowser::open(&format!("https://twitter.com/intent/tweet?text={}%20wpm%20%2F%20{}%25%20acc%20%2F%20{:.2}%20sd%0A%0Ahttps%3A%2F%2Fgithub.com%2Fthatvegandev%2Fthokr", app.thok.wpm, app.thok.accuracy, app.thok.std_dev))
+                                        webbrowser::open(&format!("https://twitter.com/intent/tweet?text={}%20wpm%20%2F%20{}%25%20acc%20%2F%20{:.2}%20sd%0A%0Ahttps%3A%2F%2Fgithub.com%2Fhindriix%2Fthokr", app.thok.wpm, app.thok.accuracy, app.thok.std_dev))
                                     .unwrap_or_default();
                                     }
                                     KeyCode::Char('r') => {

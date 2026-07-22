@@ -1,3 +1,4 @@
+use crate::decorate::WordMods;
 use crate::util::std_dev;
 use crate::TICK_RATE_MS;
 use chrono::prelude::*;
@@ -48,6 +49,11 @@ pub struct Thok {
     /// topped up as the cursor advances and the test ends only on the timer,
     /// never by reaching the end of the words.
     pub refill_words: Vec<String>,
+    /// End the test the instant an incorrect character is typed.
+    pub death_mode: bool,
+    /// Punctuation/number transforms applied to refilled words (matching the
+    /// initial prompt) in continuous mode.
+    pub word_mods: WordMods,
 }
 
 impl Thok {
@@ -68,6 +74,8 @@ impl Thok {
             std_dev: 0.0,
             pace_wpm: None,
             refill_words: vec![],
+            death_mode: false,
+            word_mods: WordMods::default(),
         }
     }
 
@@ -91,14 +99,16 @@ impl Thok {
         }
 
         let rng = &mut rand::thread_rng();
+        let sampled: Vec<String> = (0..REFILL_WORD_COUNT)
+            .filter_map(|_| self.refill_words.choose(rng).cloned())
+            .collect();
+
         let mut appended = String::new();
-        for _ in 0..REFILL_WORD_COUNT {
-            if let Some(word) = self.refill_words.choose(rng) {
-                // the prompt always ends mid-stream, so every appended word is
-                // space-separated from what precedes it.
-                appended.push(' ');
-                appended.push_str(word);
-            }
+        for word in self.word_mods.apply(&sampled) {
+            // the prompt always ends mid-stream, so every appended word is
+            // space-separated from what precedes it.
+            appended.push(' ');
+            appended.push_str(&word);
         }
 
         self.prompt.push_str(&appended);
@@ -266,6 +276,12 @@ impl Thok {
     }
 
     pub fn has_finished(&self) -> bool {
+        // death mode ends the test on the first mistake, ahead of every other
+        // rule (even a running timer or an unfinished prompt).
+        if self.death_mode && self.input.iter().any(|i| i.outcome == Outcome::Incorrect) {
+            return true;
+        }
+
         let timer_expired = self.seconds_remaining.is_some_and(|sr| sr <= 0.0);
         if self.is_continuous() {
             // words stream forever; only the clock ends a continuous test.
@@ -513,6 +529,33 @@ mod tests {
         // only the clock ends it
         thok.on_tick();
         thok.on_tick();
+        assert!(thok.has_finished());
+    }
+
+    #[test]
+    fn death_mode_finishes_on_first_mistake() {
+        let mut thok = Thok::new("hello world".to_string(), 2, None);
+        thok.death_mode = true;
+        thok.write('h');
+        thok.write('e');
+        assert!(!thok.has_finished(), "correct typing keeps the test alive");
+        thok.write('x'); // expected 'l'
+        assert!(thok.has_finished(), "a mistake ends a death-mode test");
+    }
+
+    #[test]
+    fn death_mode_off_tolerates_mistakes() {
+        let mut thok = Thok::new("hello".to_string(), 1, None);
+        thok.write('x');
+        assert!(!thok.has_finished());
+    }
+
+    #[test]
+    fn death_mode_beats_a_running_timer() {
+        // even mid-timer, a mistake ends a death-mode test immediately.
+        let mut thok = Thok::new("hello".to_string(), 1, Some(10.0));
+        thok.death_mode = true;
+        thok.write('x');
         assert!(thok.has_finished());
     }
 
